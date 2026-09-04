@@ -200,6 +200,74 @@ services:
       start_period: 15s
 
   # ─────────────────────────────────────────────
+  # FRONTEND & API GATEWAY
+  # ─────────────────────────────────────────────
+
+  frontend-service:
+    build:
+      context: ./services/frontend-service
+      dockerfile: Dockerfile
+    container_name: cc-frontend-service
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: cc-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      frontend-service:
+        condition: service_healthy
+      citizen-service:
+        condition: service_healthy
+      issue-service:
+        condition: service_healthy
+      assignment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  seed-data:
+    image: node:20-alpine
+    container_name: cc-seed-data
+    restart: "no"
+    volumes:
+      - ./scripts:/app/scripts
+    working_dir: /app
+    environment:
+      ISSUE_SERVICE_URL: http://issue-service:3002
+      CITIZEN_SERVICE_URL: http://citizen-service:3001
+    command: node scripts/seed.js
+    depends_on:
+      issue-service:
+        condition: service_healthy
+      citizen-service:
+        condition: service_healthy
+    networks:
+      - civicconnect-net
+
+  # ─────────────────────────────────────────────
   # OBSERVABILITY
   # ─────────────────────────────────────────────
 

@@ -1,0 +1,9 @@
+{
+  "name": "frontend-service",
+  "version": "1.0.0",
+  "description": "CivicConnect Map-based Live Incident Frontend",
+  "scripts": {
+    "start": "npx serve -l 8080 ."
+  },
+  "keywords": ["frontend", "map", "leaflet", "manipal", "civicconnect"]
+}
