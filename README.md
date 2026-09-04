@@ -139,9 +139,14 @@ flowchart TD
 - **Key Features**:
   - Full civic issue state machine: `pending → validated → assigned → in_progress → resolved` (with branch to `escalated`).
   - Categorization across civic domains: `roads`, `garbage`, `streetlights`, `water`, `drainage`, `other`.
-  - **Issue DNA Engine** (`dna.service.ts`):
-    - Integrates with NVIDIA Gemma AI API if `NVIDIA_API_KEY` is provided.
-    - Includes smart rule-based heuristic fallback if offline, analyzing descriptions for keywords and computing root cause, severity score (1-10), trajectory, and suggested department.
+  - **Autonomous Multimodal AI Triage Agent** (`ai-triage.service.ts`):
+    - Powered by the Google Gemini API (`@google/genai` & `@google/generative-ai`, `gemini-2.5-flash`).
+    - Ingests multimodal citizen submissions: WhatsApp damage photos (JPEG/PNG/WebP), voice notes & audio (OGG/MP3/WAV/AMR), text descriptions, and GPS coordinates.
+    - Strict structured JSON schema extraction: `hazardType`, `category`, `severityScore` (1-10), `severityTrajectory` (`stable`, `worsening`, `critical`), `suggestedDepartment`, `resolutionETA`, `actionPlan`, `safetyAdvisory`, and `multimodalEvidence`.
+    - **Zero-Human-Intervention Auto-Dispatch**: Automatically creates the issue in MongoDB with status `assigned`, immediately dispatches tickets to `assignment-service`, and fires citizen confirmation alerts.
+    - Dedicated REST endpoint `POST /api/issues/triage` for instant AI hazard diagnosis and programmatic ticket dispatch.
+    - Resilient deterministic heuristic fallback engine when offline or during zero-dependency local testing.
+  - **Meta WhatsApp Cloud API Webhook**: Verified live webhook receiver at `POST /api/issues/webhook/whatsapp` for text, image, voice, and GPS payloads.
   - **Silent Witness Consensus**: Community members validate or escalate incidents with response tracking (`confirmed_bad`, `confirmed_minor`, `denied`, `worse`).
   - Event-driven outbound webhook triggers to `assignment-service` and `notification-service`.
 

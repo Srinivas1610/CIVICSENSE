@@ -111,10 +111,10 @@ let server: ReturnType<typeof app.listen>;
 const start = async (): Promise<void> => {
   if (process.env.NODE_ENV !== 'test') {
     await connectWithRetry();
+    server = app.listen(PORT, () => {
+      console.log(`[issue-service] Running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+    });
   }
-  server = app.listen(PORT, () => {
-    console.log(`[issue-service] Running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-  });
 };
 
 start().catch((err) => {

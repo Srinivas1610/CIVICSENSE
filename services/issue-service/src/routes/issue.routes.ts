@@ -125,6 +125,12 @@ router.get('/webhook/whatsapp', IssueController.whatsappWebhookVerify);
 router.post('/webhook/whatsapp', IssueController.whatsappWebhookReceive);
 
 /**
+ * POST /api/issues/triage
+ * Autonomous Multimodal AI Triage Agent endpoint (Gemini-powered)
+ */
+router.post('/triage', IssueController.autonomousTriageIssue);
+
+/**
  * GET /api/issues/:id
  * Get a single issue by ID
  */

@@ -50,6 +50,12 @@ spec:
                 secretKeyRef:
                   name: mongo-uris
                   key: ISSUE_MONGO_URI
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: civicconnect-secrets
+                  key: GEMINI_API_KEY
+                  optional: true
             - name: NVIDIA_API_KEY
               valueFrom:
                 secretKeyRef:

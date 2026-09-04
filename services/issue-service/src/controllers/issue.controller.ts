@@ -5,6 +5,12 @@ import Issue, { IssueStatus, IssueCategory, ValidationResponse } from '../models
 import { analyzeIssueDNA } from '../services/dna.service';
 import { triggerAssignment } from '../services/assignment-trigger.service';
 import { triggerStatusChangeNotification } from '../services/notification-trigger.service';
+import {
+  triageCivicHazard,
+  triageResultToDNA,
+  MultimodalTriageInput,
+  MultimodalTriageResult,
+} from '../services/ai-triage.service';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -463,8 +469,19 @@ export const whatsappWebhookReceive = async (
 ): Promise<void> => {
   try {
     const body = req.body;
+    let senderPhone = '+919845012345';
+    let description = '';
+    let mediaUrl: string | undefined;
+    let mediaBuffer: Buffer | undefined;
+    let mimeType: string | undefined;
+    let locLat = 13.3525;
+    let locLng = 74.7928;
+    let locAddress = 'Reported via WhatsApp - Location Pending Confirmation';
+    let locWardId = 'WARD-01';
+    let locWardName = 'Manipal Central Ward';
+    let isMessage = false;
 
-    // Check if this is a message from WhatsApp Cloud API
+    // Check Meta WhatsApp Cloud API envelope
     if (body.object === 'whatsapp_business_account' || body.entry) {
       const entry = body.entry?.[0];
       const changes = entry?.changes?.[0];
@@ -472,74 +489,245 @@ export const whatsappWebhookReceive = async (
       const message = value?.messages?.[0];
 
       if (message) {
-        const senderPhone = message.from; // e.g. "919876543210"
-        let description = '';
-        const mediaUrls: string[] = [];
+        isMessage = true;
+        senderPhone = message.from || senderPhone;
 
         if (message.type === 'text') {
           description = message.text?.body || 'Civic issue reported via WhatsApp';
         } else if (message.type === 'image') {
-          description = message.image?.caption || 'Photo civic issue reported via WhatsApp';
+          description = message.image?.caption || 'Photo civic hazard reported via WhatsApp';
+          mimeType = message.image?.mime_type || 'image/jpeg';
           if (message.image?.id) {
-            mediaUrls.push(`https://graph.facebook.com/v19.0/${message.image.id}`);
+            mediaUrl = `https://graph.facebook.com/v19.0/${message.image.id}`;
           }
+        } else if (message.type === 'audio') {
+          description = 'Voice note civic hazard reported via WhatsApp';
+          mimeType = message.audio?.mime_type || 'audio/ogg';
+          if (message.audio?.id) {
+            mediaUrl = `https://graph.facebook.com/v19.0/${message.audio.id}`;
+          }
+        } else if (message.type === 'location' && message.location) {
+          description = 'Live location pin reported via WhatsApp';
+          locLat = message.location.latitude;
+          locLng = message.location.longitude;
+          locAddress = message.location.address || message.location.name || locAddress;
         } else {
           description = `Reported via WhatsApp (${message.type} message)`;
         }
-
-        console.log(`[issue-service] Received WhatsApp issue from ${senderPhone}: "${description}"`);
-
-        // Automatically create and log the issue with channel: 'whatsapp'
-        const issue = new Issue({
-          reportedBy: senderPhone,
-          rawDescription: description.length >= 10 ? description : `${description} (Reported via WhatsApp)`,
-          channel: 'whatsapp',
-          category: 'other',
-          location: {
-            lat: 12.9716,
-            lng: 77.5946,
-            address: 'Reported via WhatsApp - Location Pending Confirmation',
-            wardId: 'ward-01',
-            wardName: 'Central Ward',
-            geohash: 'tdr1wv',
-          },
-          media: mediaUrls,
-          status: 'pending',
-          validationCount: 0,
-          escalationLevel: 0,
-          dna: null,
-        });
-
-        await issue.save();
-
-        // Run AI DNA analysis asynchronously
-        analyzeIssueDNA({
-          description: issue.rawDescription,
-          category: issue.category,
-          location: issue.location,
-        })
-          .then(async (dna) => {
-            issue.dna = dna;
-            issue.category = (dna.classification.toLowerCase().includes('pothole') || dna.classification.toLowerCase().includes('road'))
-              ? 'roads'
-              : dna.classification.toLowerCase().includes('light')
-              ? 'streetlights'
-              : dna.classification.toLowerCase().includes('garbage')
-              ? 'garbage'
-              : 'other';
-            await issue.save();
-            await triggerAssignment(issue);
-            console.log(`[issue-service] WhatsApp issue #${issue._id} analyzed & assigned: ${dna.classification}`);
-          })
-          .catch((err) => console.error('[issue-service] Error analyzing WhatsApp issue:', err));
-
-        res.status(200).json({ success: true, issueId: issue._id });
-        return;
       }
+    } else if (body.from || body.text || body.message || body.imageUrl || body.mediaUrl || body.imageBase64) {
+      // Direct / Simulator payload support
+      isMessage = true;
+      senderPhone = body.from || body.sender || senderPhone;
+      description = body.text || body.caption || body.message || 'Civic hazard reported via WhatsApp';
+      mediaUrl = body.mediaUrl || body.imageUrl || body.audioUrl;
+      mimeType = body.mimeType;
+
+      if (body.imageBase64) {
+        const base64Data = body.imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        mediaBuffer = Buffer.from(base64Data, 'base64');
+        mimeType = mimeType || 'image/jpeg';
+      } else if (body.audioBase64) {
+        const base64Data = body.audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+        mediaBuffer = Buffer.from(base64Data, 'base64');
+        mimeType = mimeType || 'audio/ogg';
+      }
+
+      if (body.location) {
+        locLat = body.location.lat ?? locLat;
+        locLng = body.location.lng ?? locLng;
+        locAddress = body.location.address ?? locAddress;
+        locWardId = body.location.wardId ?? locWardId;
+        locWardName = body.location.wardName ?? locWardName;
+      }
+    }
+
+    if (isMessage) {
+      console.log(`[issue-service] 🤖 AI Triage Agent analyzing WhatsApp report from ${senderPhone}: "${description}"`);
+
+      // Execute autonomous Multimodal AI Triage (Gemini)
+      const triageResult = await triageCivicHazard({
+        text: description,
+        mediaUrl,
+        mediaBuffer,
+        mimeType,
+        location: {
+          lat: locLat,
+          lng: locLng,
+          address: locAddress,
+          wardId: locWardId,
+          wardName: locWardName,
+        },
+      });
+
+      // Automatically create and log the issue with status 'assigned'
+      const rawDesc = description.length >= 10
+        ? description
+        : `${description} — ${triageResult.hazardType}: ${triageResult.rootCauseHypothesis}`;
+
+      const finalAddress = triageResult.extractedLocation || locAddress;
+
+      const issue = new Issue({
+        reportedBy: senderPhone,
+        rawDescription: rawDesc,
+        channel: 'whatsapp',
+        category: triageResult.category,
+        location: {
+          lat: locLat,
+          lng: locLng,
+          address: finalAddress,
+          wardId: locWardId,
+          wardName: locWardName,
+          geohash: 'tdm6s1q',
+        },
+        media: mediaUrl ? [mediaUrl] : [],
+        status: 'assigned', // Auto-dispatched directly by AI triage
+        validationCount: 0,
+        escalationLevel: 0,
+        dna: triageResultToDNA(triageResult),
+      });
+
+      await issue.save();
+
+      // Autonomous Ticket Dispatch: Notify assignment-service immediately
+      await triggerAssignment(issue);
+
+      // Automated Citizen Notification: Confirmation alert
+      triggerStatusChangeNotification({
+        issueId: String(issue._id),
+        recipientId: senderPhone,
+        oldStatus: 'pending',
+        newStatus: 'assigned',
+        wardId: issue.location.wardId,
+        category: issue.category,
+        rawDescription: issue.rawDescription,
+        updatedBy: 'GEMINI_AUTONOMOUS_TRIAGE_AGENT',
+      });
+
+      console.log(`[issue-service] ⚡ Auto-dispatched issue #${issue._id} to ${triageResult.suggestedDepartment.name} (Severity: ${triageResult.severityScore}/10, ETA: ${triageResult.resolutionETA})`);
+
+      res.status(200).json({
+        success: true,
+        autoDispatched: true,
+        issueId: issue._id,
+        category: issue.category,
+        severityScore: triageResult.severityScore,
+        department: triageResult.suggestedDepartment.name,
+        resolutionETA: triageResult.resolutionETA,
+        triage: triageResult,
+      });
+      return;
     }
 
     // Acknowledge all other events
     res.status(200).send('EVENT_RECEIVED');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── AUTONOMOUS MULTIMODAL AI TRIAGE REST ENDPOINT ────────────────────────────
+
+export const autonomousTriageIssue = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const {
+      text,
+      mediaUrl,
+      imageBase64,
+      audioBase64,
+      mimeType,
+      location,
+      autoDispatch = true,
+      reportedBy = 'AI_TRIAGE_CITIZEN',
+      channel = 'app',
+    } = req.body;
+
+    let mediaBuffer: Buffer | undefined;
+    let computedMimeType = mimeType;
+
+    if (imageBase64) {
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      mediaBuffer = Buffer.from(base64Data, 'base64');
+      computedMimeType = computedMimeType || 'image/jpeg';
+    } else if (audioBase64) {
+      const base64Data = audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+      mediaBuffer = Buffer.from(base64Data, 'base64');
+      computedMimeType = computedMimeType || 'audio/ogg';
+    }
+
+    const triageResult = await triageCivicHazard({
+      text: text || 'Civic infrastructure defect',
+      mediaUrl,
+      mediaBuffer,
+      mimeType: computedMimeType,
+      location,
+    });
+
+    if (!autoDispatch) {
+      res.status(200).json({
+        success: true,
+        autoDispatched: false,
+        triage: triageResult,
+      });
+      return;
+    }
+
+    const locLat = location?.lat || 13.3525;
+    const locLng = location?.lng || 74.7928;
+    const locAddress = location?.address || triageResult.extractedLocation || 'Manipal, Karnataka';
+    const locWardId = location?.wardId || 'WARD-01';
+    const locWardName = location?.wardName || 'Manipal Central Ward';
+
+    const rawDesc = (text && text.length >= 10)
+      ? text
+      : `${triageResult.hazardType}: ${triageResult.rootCauseHypothesis}`;
+
+    const issue = new Issue({
+      reportedBy,
+      rawDescription: rawDesc,
+      channel: channel || 'app',
+      category: triageResult.category,
+      location: {
+        lat: locLat,
+        lng: locLng,
+        address: locAddress,
+        wardId: locWardId,
+        wardName: locWardName,
+        geohash: location?.geohash || 'tdm6s1q',
+      },
+      media: mediaUrl ? [mediaUrl] : [],
+      status: 'assigned',
+      validationCount: 0,
+      escalationLevel: 0,
+      dna: triageResultToDNA(triageResult),
+    });
+
+    await issue.save();
+    await triggerAssignment(issue);
+
+    triggerStatusChangeNotification({
+      issueId: String(issue._id),
+      recipientId: reportedBy,
+      oldStatus: 'pending',
+      newStatus: 'assigned',
+      wardId: issue.location.wardId,
+      category: issue.category,
+      rawDescription: issue.rawDescription,
+      updatedBy: 'GEMINI_AUTONOMOUS_TRIAGE_AGENT',
+    });
+
+    res.status(201).json({
+      success: true,
+      autoDispatched: true,
+      data: {
+        issue,
+        triage: triageResult,
+      },
+    });
   } catch (err) {
     next(err);
   }
