@@ -20,4 +20,6 @@ resources:
   - assignment-service/service.yaml
   - notification-service/deployment.yaml
   - notification-service/service.yaml
+  - frontend-service/deployment.yaml
+  - frontend-service/service.yaml
   - ingress.yaml
