@@ -113,6 +113,18 @@ router.get('/', listIssuesValidator, IssueController.listIssues);
 router.get('/ward/:wardId/stats', IssueController.getWardStats);
 
 /**
+ * GET /api/issues/webhook/whatsapp
+ * Meta WhatsApp Cloud API verification challenge
+ */
+router.get('/webhook/whatsapp', IssueController.whatsappWebhookVerify);
+
+/**
+ * POST /api/issues/webhook/whatsapp
+ * Meta WhatsApp Cloud API incoming message receiver
+ */
+router.post('/webhook/whatsapp', IssueController.whatsappWebhookReceive);
+
+/**
  * GET /api/issues/:id
  * Get a single issue by ID
  */

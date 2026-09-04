@@ -437,3 +437,111 @@ export const healthCheck = (_req: Request, res: Response): void => {
     mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
   });
 };
+
+// ─── WHATSAPP WEBHOOK (META CLOUD API) ────────────────────────────────────────
+
+export const whatsappWebhookVerify = (req: Request, res: Response): void => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN || 'civicconnect_token';
+
+  if (mode === 'subscribe' && token === expectedToken) {
+    console.log('[issue-service] WhatsApp webhook verified successfully');
+    res.status(200).send(challenge);
+    return;
+  }
+
+  res.status(403).json({ error: 'Forbidden' });
+};
+
+export const whatsappWebhookReceive = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const body = req.body;
+
+    // Check if this is a message from WhatsApp Cloud API
+    if (body.object === 'whatsapp_business_account' || body.entry) {
+      const entry = body.entry?.[0];
+      const changes = entry?.changes?.[0];
+      const value = changes?.value;
+      const message = value?.messages?.[0];
+
+      if (message) {
+        const senderPhone = message.from; // e.g. "919876543210"
+        let description = '';
+        const mediaUrls: string[] = [];
+
+        if (message.type === 'text') {
+          description = message.text?.body || 'Civic issue reported via WhatsApp';
+        } else if (message.type === 'image') {
+          description = message.image?.caption || 'Photo civic issue reported via WhatsApp';
+          if (message.image?.id) {
+            mediaUrls.push(`https://graph.facebook.com/v19.0/${message.image.id}`);
+          }
+        } else {
+          description = `Reported via WhatsApp (${message.type} message)`;
+        }
+
+        console.log(`[issue-service] Received WhatsApp issue from ${senderPhone}: "${description}"`);
+
+        // Automatically create and log the issue with channel: 'whatsapp'
+        const issue = new Issue({
+          reportedBy: senderPhone,
+          rawDescription: description.length >= 10 ? description : `${description} (Reported via WhatsApp)`,
+          channel: 'whatsapp',
+          category: 'other',
+          location: {
+            lat: 12.9716,
+            lng: 77.5946,
+            address: 'Reported via WhatsApp - Location Pending Confirmation',
+            wardId: 'ward-01',
+            wardName: 'Central Ward',
+            geohash: 'tdr1wv',
+          },
+          media: mediaUrls,
+          status: 'pending',
+          validationCount: 0,
+          escalationLevel: 0,
+          dna: null,
+        });
+
+        await issue.save();
+
+        // Run AI DNA analysis asynchronously
+        analyzeIssueDNA({
+          description: issue.rawDescription,
+          category: issue.category,
+          location: issue.location,
+        })
+          .then(async (dna) => {
+            issue.dna = dna;
+            issue.category = (dna.classification.toLowerCase().includes('pothole') || dna.classification.toLowerCase().includes('road'))
+              ? 'roads'
+              : dna.classification.toLowerCase().includes('light')
+              ? 'streetlights'
+              : dna.classification.toLowerCase().includes('garbage')
+              ? 'garbage'
+              : 'other';
+            await issue.save();
+            await triggerAssignment(issue);
+            console.log(`[issue-service] WhatsApp issue #${issue._id} analyzed & assigned: ${dna.classification}`);
+          })
+          .catch((err) => console.error('[issue-service] Error analyzing WhatsApp issue:', err));
+
+        res.status(200).json({ success: true, issueId: issue._id });
+        return;
+      }
+    }
+
+    // Acknowledge all other events
+    res.status(200).send('EVENT_RECEIVED');
+  } catch (err) {
+    next(err);
+  }
+};
+
