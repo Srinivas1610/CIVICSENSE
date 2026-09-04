@@ -216,6 +216,8 @@ docker compose ps
 #### Exposed Local Ports
 | Component | Port | Endpoint |
 |---|---|---|
+| **NGINX Gateway** | `80` | http://localhost/ (Unified API & Frontend Ingress) |
+| **Frontend Map UI** | `8080` | http://localhost:8080/ (Interactive Leaflet.js Map) |
 | `citizen-service` | `3001` | http://localhost:3001/health |
 | `issue-service` | `3002` | http://localhost:3002/health |
 | `assignment-service` | `3003` | http://localhost:3003/health |
@@ -223,7 +225,29 @@ docker compose ps
 | `Prometheus` | `9090` | http://localhost:9090/targets |
 | `Grafana` | `3000` | http://localhost:3000 (`admin` / `civicconnect123`) |
 
-To shut down:
+### ⚡ Single-Command Local Dev (Zero External Dependencies)
+If you don't have Docker running, start the complete stack with in-memory MongoDB, all 4 microservices, live Frontend Map UI, and auto-seeded Manipal data:
+```bash
+npm start
+# or: node scripts/runner.js
+```
+
+### 🌱 Idempotent Manipal Seed Data Injection
+To re-seed or verify the 10 Manipal landmarks (Tiger Circle, Kamath Circle, MIT Central Library, End Point, etc.):
+```bash
+npm run seed
+# or: node scripts/seed.js
+```
+
+### 📈 Live Traffic & Load Generator (for Prometheus / Grafana)
+Generate concurrent simulated citizen traffic (pothole reports, reads, validations) to drive Prometheus scrape graphs and Grafana dashboards:
+```bash
+npm run load-gen
+# or with custom rate & duration:
+RATE=20 DURATION=60 node scripts/load-gen.js
+```
+
+To shut down Docker Compose:
 ```bash
 docker compose down -v
 ```
@@ -252,9 +276,12 @@ k8s/
 ├── assignment-service/
 │   ├── deployment.yaml           # 2 Replicas, RollingUpdate, Probes, Resource Limits
 │   └── service.yaml              # ClusterIP Service (Port 3003)
-└── notification-service/
+├── notification-service/
+│   ├── deployment.yaml           # 2 Replicas, RollingUpdate, Probes, Resource Limits
+│   └── service.yaml              # ClusterIP Service (Port 3004)
+└── frontend-service/
     ├── deployment.yaml           # 2 Replicas, RollingUpdate, Probes, Resource Limits
-    └── service.yaml              # ClusterIP Service (Port 3004)
+    └── service.yaml              # ClusterIP Service (Port 80)
 ```
 
 ### ⚙️ Self-Healing & Resilience Features
