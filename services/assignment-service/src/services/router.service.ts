@@ -16,11 +16,23 @@ const DEPARTMENT_MAP: Record<string, Omit<IDepartmentInfo, 'category'>> = {
     departmentName: 'Roads & Infrastructure Dept',
     contactEmail: 'roads@civicconnect.gov',
   },
+  roads_infrastructure: {
+    departmentName: 'Roads & Infrastructure Dept',
+    contactEmail: 'roads@civicconnect.gov',
+  },
   garbage: {
     departmentName: 'Solid Waste Management Dept',
     contactEmail: 'swm@civicconnect.gov',
   },
+  solid_waste: {
+    departmentName: 'Solid Waste Management Dept',
+    contactEmail: 'swm@civicconnect.gov',
+  },
   streetlights: {
+    departmentName: 'Street Lighting Authority',
+    contactEmail: 'lighting@civicconnect.gov',
+  },
+  electrical_lighting: {
     departmentName: 'Street Lighting Authority',
     contactEmail: 'lighting@civicconnect.gov',
   },
@@ -31,6 +43,18 @@ const DEPARTMENT_MAP: Record<string, Omit<IDepartmentInfo, 'category'>> = {
   drainage: {
     departmentName: 'Drainage & Sewerage Board',
     contactEmail: 'drainage@civicconnect.gov',
+  },
+  water_drainage: {
+    departmentName: 'Drainage & Sewerage Board',
+    contactEmail: 'drainage@civicconnect.gov',
+  },
+  public_safety: {
+    departmentName: 'Disaster Response & Public Safety Unit',
+    contactEmail: 'safety@civicconnect.gov',
+  },
+  other: {
+    departmentName: 'Municipal Operations & Maintenance Unit',
+    contactEmail: 'municipal@civicconnect.gov',
   },
 };
 

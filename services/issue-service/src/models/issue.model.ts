@@ -36,7 +36,9 @@ export type IssueStatus =
   | 'assigned'
   | 'in_progress'
   | 'resolved'
-  | 'escalated';
+  | 'escalated'
+  | 'Submitted'
+  | 'submitted';
 
 export type IssueCategory =
   | 'roads'
@@ -44,13 +46,20 @@ export type IssueCategory =
   | 'streetlights'
   | 'water'
   | 'drainage'
-  | 'other';
+  | 'other'
+  | 'ROADS_INFRASTRUCTURE'
+  | 'SOLID_WASTE'
+  | 'ELECTRICAL_LIGHTING'
+  | 'WATER_DRAINAGE'
+  | 'PUBLIC_SAFETY'
+  | 'OTHER';
 
 export type IssueChannel = 'app' | 'whatsapp' | 'voice' | 'qr';
 
 export type ValidationResponse = 'confirmed_bad' | 'confirmed_minor' | 'denied' | 'worse';
 
 export interface IIssue {
+  title?: string;
   reportedBy: string;
   channel: IssueChannel;
   category: IssueCategory;
@@ -58,6 +67,8 @@ export interface IIssue {
   media: string[];
   rawDescription: string;
   dna: IIssueDNA | null;
+  aiDna?: any;
+  severity?: number;
   status: IssueStatus;
   validationCount: number;
   escalationLevel: 0 | 1 | 2 | 3 | 4;
@@ -114,6 +125,11 @@ const DNASchema = new Schema<IIssueDNA>(
 
 const IssueSchema = new Schema<IIssueDocument>(
   {
+    title: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     reportedBy: {
       type: String,
       required: [true, 'reportedBy (citizen ID) is required'],
@@ -127,7 +143,20 @@ const IssueSchema = new Schema<IIssueDocument>(
     },
     category: {
       type: String,
-      enum: ['roads', 'garbage', 'streetlights', 'water', 'drainage', 'other'],
+      enum: [
+        'roads',
+        'garbage',
+        'streetlights',
+        'water',
+        'drainage',
+        'other',
+        'ROADS_INFRASTRUCTURE',
+        'SOLID_WASTE',
+        'ELECTRICAL_LIGHTING',
+        'WATER_DRAINAGE',
+        'PUBLIC_SAFETY',
+        'OTHER',
+      ],
       required: [true, 'category is required'],
       index: true,
     },
@@ -150,9 +179,19 @@ const IssueSchema = new Schema<IIssueDocument>(
       type: DNASchema,
       default: null,
     },
+    aiDna: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+    severity: {
+      type: Number,
+      min: 1,
+      max: 10,
+      default: null,
+    },
     status: {
       type: String,
-      enum: ['pending', 'validated', 'assigned', 'in_progress', 'resolved', 'escalated'],
+      enum: ['pending', 'validated', 'assigned', 'in_progress', 'resolved', 'escalated', 'Submitted', 'submitted'],
       default: 'pending',
       index: true,
     },

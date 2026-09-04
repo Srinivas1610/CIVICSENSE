@@ -3,7 +3,7 @@ import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import Issue, { IssueStatus, IssueCategory, ValidationResponse } from '../models/issue.model';
 import { analyzeIssueDNA } from '../services/dna.service';
-import { triggerAssignment } from '../services/assignment-trigger.service';
+import { triggerAssignment, triggerAssignmentRoute } from '../services/assignment-trigger.service';
 import { triggerStatusChangeNotification } from '../services/notification-trigger.service';
 import {
   triageCivicHazard,
@@ -11,6 +11,8 @@ import {
   MultimodalTriageInput,
   MultimodalTriageResult,
 } from '../services/ai-triage.service';
+import { analyzeCivicIncident } from '../ai/triageAgent';
+import { sendWhatsAppReply } from '../routes/whatsapp';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -545,7 +547,30 @@ export const whatsappWebhookReceive = async (
     if (isMessage) {
       console.log(`[issue-service] 🤖 AI Triage Agent analyzing WhatsApp report from ${senderPhone}: "${description}"`);
 
-      // Execute autonomous Multimodal AI Triage (Gemini)
+      // 1. Analyze with AI Incident Reasoning Agent
+      const incidentDNA = await analyzeCivicIncident({
+        textPrompt: description,
+        imageBase64: body.imageBase64,
+        mimeType,
+      });
+
+      // 2. Autonomous Execution: Spam Filtering
+      if (incidentDNA.isGenuineCivicIssue === false) {
+        const spamReply =
+          'CivicConnect AI did not detect a recognized civic hazard in this image. Please send clear photo evidence of public infrastructure.';
+        await sendWhatsAppReply(senderPhone, spamReply);
+
+        res.status(200).json({
+          success: false,
+          dropped: true,
+          reason: 'Spam or non-civic submission filtered',
+          reply: spamReply,
+          aiDna: incidentDNA,
+        });
+        return;
+      }
+
+      // 3. Execute deep Multimodal Triage for legacy schema alignment
       const triageResult = await triageCivicHazard({
         text: description,
         mediaUrl,
@@ -560,18 +585,20 @@ export const whatsappWebhookReceive = async (
         },
       });
 
-      // Automatically create and log the issue with status 'assigned'
       const rawDesc = description.length >= 10
         ? description
         : `${description} — ${triageResult.hazardType}: ${triageResult.rootCauseHypothesis}`;
 
       const finalAddress = triageResult.extractedLocation || locAddress;
+      const ticketNumber = Math.floor(100000 + Math.random() * 900000);
 
       const issue = new Issue({
+        title: incidentDNA.title,
         reportedBy: senderPhone,
         rawDescription: rawDesc,
         channel: 'whatsapp',
         category: triageResult.category,
+        severity: incidentDNA.severity,
         location: {
           lat: locLat,
           lng: locLng,
@@ -584,15 +611,37 @@ export const whatsappWebhookReceive = async (
         status: 'assigned', // Auto-dispatched directly by AI triage
         validationCount: 0,
         escalationLevel: 0,
+        aiDna: incidentDNA,
         dna: triageResultToDNA(triageResult),
       });
 
       await issue.save();
 
-      // Autonomous Ticket Dispatch: Notify assignment-service immediately
+      // 4. Automated Assignment Dispatch to assignment-service
+      await triggerAssignmentRoute({
+        issueId: String(issue._id),
+        category: incidentDNA.category,
+        department: incidentDNA.recommendedDepartment,
+        wardId: issue.location.wardId,
+        notes: `Auto-dispatched by CivicConnect AI Triage Agent to ${incidentDNA.recommendedDepartment}. Target SLA: ${incidentDNA.estimatedResolutionDays} days.`,
+      });
       await triggerAssignment(issue);
 
-      // Automated Citizen Notification: Confirmation alert
+      // 5. Automated Citizen Notification: WhatsApp acknowledgment card
+      const replyCard =
+`🏛️ *CivicConnect Automated Dispatch*
+Ticket: #CIVIC-${ticketNumber}
+------------------------------
+🚨 *AI Classification:* ${incidentDNA.category}
+⚠️ *Severity Score:* ${incidentDNA.severity}/10
+🏢 *Assigned To:* ${incidentDNA.recommendedDepartment}
+⏳ *Target SLA:* ${incidentDNA.estimatedResolutionDays} Days
+📍 *Location Tracked:* Coordinates Recorded
+------------------------------
+Track live status on the portal: https://srinivas1610.github.io/CIVICSENSE/`;
+
+      await sendWhatsAppReply(senderPhone, replyCard);
+
       triggerStatusChangeNotification({
         issueId: String(issue._id),
         recipientId: senderPhone,
@@ -604,17 +653,20 @@ export const whatsappWebhookReceive = async (
         updatedBy: 'GEMINI_AUTONOMOUS_TRIAGE_AGENT',
       });
 
-      console.log(`[issue-service] ⚡ Auto-dispatched issue #${issue._id} to ${triageResult.suggestedDepartment.name} (Severity: ${triageResult.severityScore}/10, ETA: ${triageResult.resolutionETA})`);
+      console.log(`[issue-service] ⚡ Auto-dispatched issue #${issue._id} to ${incidentDNA.recommendedDepartment} (Severity: ${incidentDNA.severity}/10)`);
 
       res.status(200).json({
         success: true,
         autoDispatched: true,
+        ticket: `#CIVIC-${ticketNumber}`,
         issueId: issue._id,
         category: issue.category,
-        severityScore: triageResult.severityScore,
-        department: triageResult.suggestedDepartment.name,
-        resolutionETA: triageResult.resolutionETA,
+        severityScore: incidentDNA.severity,
+        department: incidentDNA.recommendedDepartment,
+        resolutionETA: `${incidentDNA.estimatedResolutionDays} days`,
+        aiDna: incidentDNA,
         triage: triageResult,
+        replyCard,
       });
       return;
     }

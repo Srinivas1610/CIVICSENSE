@@ -71,6 +71,61 @@ export async function createAssignment(req: Request, res: Response, next: NextFu
   }
 }
 
+/**
+ * POST /api/assignments/route
+ * Autonomous AI dispatch endpoint: accepts issueId, category, department, wardId, notes
+ */
+export async function routeAssignmentAI(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { issueId, category, department, wardId, zoneId, notes } = req.body;
+
+    if (!issueId) {
+      res.status(400).json({ success: false, error: 'issueId is required' });
+      return;
+    }
+
+    // Check if assignment already exists
+    const existing = await Assignment.findOne({ issueId });
+    if (existing) {
+      res.status(200).json({
+        success: true,
+        message: 'Assignment already exists',
+        data: existing,
+      });
+      return;
+    }
+
+    const dept = getDepartmentForCategory(category || 'other');
+    const assignedAt = new Date();
+    const dueDate = new Date(assignedAt);
+    dueDate.setDate(dueDate.getDate() + 3);
+
+    const assignment = await Assignment.create({
+      issueId,
+      category: dept.category,
+      departmentName: department || dept.departmentName,
+      contactEmail: dept.contactEmail,
+      wardId: wardId || 'ward-default',
+      zoneId: zoneId || 'zone-default',
+      assignedTo: null,
+      assignedAt,
+      dueDate,
+      status: 'pending',
+      escalationLevel: 0,
+      escalationDrafts: [],
+      notes: notes || `Auto-dispatched by CivicConnect AI Triage Agent to ${department || dept.departmentName}`,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Assignment routed successfully',
+      data: assignment,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // ─── Get Assignment by issueId ────────────────────────────────────────────────
 
 /**

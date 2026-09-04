@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import { collectDefaultMetrics, Registry, Counter, Histogram } from 'prom-client';
 import issueRoutes from './routes/issue.routes';
+import whatsappRoutes from './routes/whatsapp';
 
 // ─── App Setup ────────────────────────────────────────────────────────────────
 const app = express();
@@ -68,6 +69,8 @@ app.get('/metrics', async (_req: Request, res: Response) => {
 });
 
 // ─── API Routes ────────────────────────────────────────────────────────────────
+app.use('/webhook/whatsapp', whatsappRoutes);
+app.use('/api/issues/webhook/whatsapp', whatsappRoutes);
 app.use('/api/issues', issueRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────

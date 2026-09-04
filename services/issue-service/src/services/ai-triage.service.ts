@@ -78,6 +78,36 @@ const DEPARTMENT_DIRECTORY: Record<IssueCategory, MultimodalTriageResult['sugges
     zoneId: 'ZONE-GEN',
     contactEmail: 'general@civicconnect.gov',
   },
+  ROADS_INFRASTRUCTURE: {
+    name: 'Roads & Infrastructure Department',
+    zoneId: 'ZONE-ROADS',
+    contactEmail: 'roads@civicconnect.gov',
+  },
+  SOLID_WASTE: {
+    name: 'Solid Waste Management & Sanitation Board',
+    zoneId: 'ZONE-SWM',
+    contactEmail: 'swm@civicconnect.gov',
+  },
+  ELECTRICAL_LIGHTING: {
+    name: 'Electrical & Public Lighting Authority',
+    zoneId: 'ZONE-ELEC',
+    contactEmail: 'streetlights@civicconnect.gov',
+  },
+  WATER_DRAINAGE: {
+    name: 'Stormwater Drainage & Flood Control Wing',
+    zoneId: 'ZONE-DRAIN',
+    contactEmail: 'drainage@civicconnect.gov',
+  },
+  PUBLIC_SAFETY: {
+    name: 'Disaster Response & Public Safety Unit',
+    zoneId: 'ZONE-SAFETY',
+    contactEmail: 'safety@civicconnect.gov',
+  },
+  OTHER: {
+    name: 'Civic Grievance Rapid Response Cell',
+    zoneId: 'ZONE-GEN',
+    contactEmail: 'general@civicconnect.gov',
+  },
 };
 
 // ─── System Prompt for Gemini ──────────────────────────────────────────────────

@@ -131,6 +131,9 @@ services:
       MONGO_URI: mongodb://mongo-issue:27017/issue_db
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      PHONE_NUMBER_ID: ${PHONE_NUMBER_ID:-}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-civicconnect_verify_token}
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       ASSIGNMENT_SERVICE_URL: http://assignment-service:3003
       NOTIFICATION_SERVICE_URL: http://notification-service:3004

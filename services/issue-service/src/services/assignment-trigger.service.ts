@@ -62,3 +62,45 @@ export async function triggerAssignment(issue: IIssueDocument): Promise<void> {
     );
   }
 }
+
+/**
+ * Autonomous assignment dispatch directly to /api/assignments/route
+ */
+export async function triggerAssignmentRoute(params: {
+  issueId: string;
+  category: string;
+  department: string;
+  wardId?: string;
+  notes?: string;
+}): Promise<any> {
+  const payload = {
+    issueId: params.issueId,
+    category: params.category,
+    department: params.department,
+    wardId: params.wardId || 'ward-101',
+    notes: params.notes,
+  };
+
+  try {
+    const response = await axios.post(
+      `${ASSIGNMENT_SERVICE_URL}/api/assignments/route`,
+      payload,
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 10000,
+      }
+    );
+    console.log(
+      `[assignment-trigger] Autonomous assignment routed for issue ${params.issueId}:`,
+      response.data
+    );
+    return response.data;
+  } catch (err: any) {
+    console.error(
+      `[assignment-trigger] Failed to route assignment for issue ${params.issueId}:`,
+      err.message
+    );
+    return null;
+  }
+}
+

@@ -26,6 +26,8 @@ const STATUS_MESSAGE_MAP: Record<IssueStatus, string> = {
   in_progress: 'Work has started on your reported issue.',
   resolved: 'Your issue has been resolved. Thank you for reporting!',
   escalated: 'Your issue has been escalated to higher authorities for urgent action.',
+  Submitted: 'Your issue has been submitted and is undergoing autonomous AI triage.',
+  submitted: 'Your issue has been submitted and is undergoing autonomous AI triage.',
 };
 
 export async function triggerStatusChangeNotification(

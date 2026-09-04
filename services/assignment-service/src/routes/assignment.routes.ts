@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import {
   createAssignment,
+  routeAssignmentAI,
   getAssignmentByIssueId,
   updateAssignmentStatus,
   listByDepartment,
@@ -48,6 +49,16 @@ router.get(
 );
 
 // ─── Create Assignment ─────────────────────────────────────────────────────────
+
+/**
+ * POST /api/assignments/route
+ * AI Triage autonomous dispatch route
+ */
+router.post(
+  '/api/assignments/route',
+  [body('issueId').notEmpty().withMessage('issueId is required')],
+  routeAssignmentAI
+);
 
 /**
  * POST /api/assignments
