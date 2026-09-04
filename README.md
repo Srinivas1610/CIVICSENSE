@@ -1,6 +1,7 @@
 # 🏛️ CivicConnect (CIVICSENSE)
 ### Cloud Computing & DevOps Laboratory (CCDL) — Final Capstone Project
 
+[![Live Interactive Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen?logo=googlechrome)](https://srinivas1610.github.io/CIVICSENSE/)
 [![CI/CD Pipeline](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue?logo=github-actions)](.github/workflows/deploy.yml)
 [![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes%20%7C%20K3s-326CE5?logo=kubernetes)](k8s/)
 [![Docker](https://img.shields.io/badge/Containerization-Docker%20Compose-2496ED?logo=docker)](docker-compose.yml)
@@ -8,6 +9,9 @@
 [![Observability](https://img.shields.io/badge/Monitoring-Prometheus%20%2B%20Grafana-F46800?logo=prometheus)](monitoring/)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript%20Node.js-3178C6?logo=typescript)](services/)
 [![Database](https://img.shields.io/badge/Database-MongoDB%207.0-47A248?logo=mongodb)](services/)
+
+> 🌐 **Interactive Web App & WhatsApp Simulator:** [https://srinivas1610.github.io/CIVICSENSE/](https://srinivas1610.github.io/CIVICSENSE/)  
+> Try the real-time WhatsApp bot simulation, test neighborhood Silent Witness validation, and inspect live microservices payloads right in your browser!
 
 ---
 
