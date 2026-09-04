@@ -97,6 +97,7 @@ jobs:
         continue-on-error: true
 
   # ─────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────
   # JOB 3: Build & Push Docker Images
   # ─────────────────────────────────────────────────────
   build-and-push:
@@ -109,11 +110,25 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service:
-          - citizen-service
-          - issue-service
-          - assignment-service
-          - notification-service
+        include:
+          - service: citizen-service
+            context: services/citizen-service
+            dockerfile: services/citizen-service/Dockerfile
+          - service: issue-service
+            context: services/issue-service
+            dockerfile: services/issue-service/Dockerfile
+          - service: assignment-service
+            context: services/assignment-service
+            dockerfile: services/assignment-service/Dockerfile
+          - service: notification-service
+            context: services/notification-service
+            dockerfile: services/notification-service/Dockerfile
+          - service: frontend-service
+            context: services/frontend-service
+            dockerfile: services/frontend-service/Dockerfile
+          - service: gateway
+            context: gateway
+            dockerfile: gateway/Dockerfile
 
     steps:
       - name: Checkout code
@@ -142,8 +157,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: services/${{ matrix.service }}
-          file: services/${{ matrix.service }}/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -183,9 +198,11 @@ jobs:
       - name: Update image tags in manifests
         run: |
           SHA_TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
-          for SERVICE in citizen-service issue-service assignment-service notification-service; do
-            sed -i "s|:latest|:${SHA_TAG}|g" k8s/${SERVICE}/deployment.yaml
-            sed -i "s|YOUR_GITHUB_USERNAME|${{ github.repository_owner }}|g" k8s/${SERVICE}/deployment.yaml
+          for SERVICE in citizen-service issue-service assignment-service notification-service frontend-service; do
+            if [ -f "k8s/${SERVICE}/deployment.yaml" ]; then
+              sed -i "s|:latest|:${SHA_TAG}|g" k8s/${SERVICE}/deployment.yaml
+              sed -i "s|YOUR_GITHUB_USERNAME|${{ github.repository_owner }}|g" k8s/${SERVICE}/deployment.yaml
+            fi
           done
 
       - name: Apply Kubernetes manifests
@@ -198,11 +215,12 @@ jobs:
           kubectl apply -f k8s/issue-service/
           kubectl apply -f k8s/assignment-service/
           kubectl apply -f k8s/notification-service/
+          kubectl apply -f k8s/frontend-service/
           kubectl apply -f k8s/ingress.yaml
 
       - name: Wait for rollout
         run: |
-          for SVC in citizen-service issue-service assignment-service notification-service; do
+          for SVC in citizen-service issue-service assignment-service notification-service frontend-service; do
             echo "Waiting for $SVC rollout..."
             kubectl rollout status deployment/$SVC -n civicconnect --timeout=120s
           done
@@ -230,4 +248,5 @@ jobs:
           kubectl rollout undo deployment/issue-service -n civicconnect || true
           kubectl rollout undo deployment/assignment-service -n civicconnect || true
           kubectl rollout undo deployment/notification-service -n civicconnect || true
+          kubectl rollout undo deployment/frontend-service -n civicconnect || true
           echo "Rollback complete."
