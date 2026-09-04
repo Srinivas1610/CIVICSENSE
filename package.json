@@ -1,0 +1,27 @@
+{
+  "name": "civicconnect-monorepo",
+  "version": "1.0.0",
+  "description": "CivicConnect CCDL Project — Cloud Computing & DevOps Laboratory Microservice Ecosystem",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/runner.js",
+    "dev": "node scripts/runner.js",
+    "seed": "node scripts/seed.js",
+    "load-gen": "node scripts/load-gen.js",
+    "build": "npm run build --prefix services/citizen-service && npm run build --prefix services/issue-service && npm run build --prefix services/assignment-service && npm run build --prefix services/notification-service",
+    "test": "npm test --prefix services/citizen-service && npm test --prefix services/issue-service && npm test --prefix services/assignment-service && npm test --prefix services/notification-service"
+  },
+  "keywords": [
+    "cloud-computing",
+    "devops",
+    "kubernetes",
+    "k3s",
+    "microservices",
+    "prometheus",
+    "grafana",
+    "docker",
+    "civic-tech"
+  ],
+  "author": "Srinivas & CivicConnect Team",
+  "license": "MIT"
+}
