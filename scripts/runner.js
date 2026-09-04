@@ -1,6 +1,8 @@
 const { MongoMemoryServer } = require('../services/citizen-service/node_modules/mongodb-memory-server');
 const { spawn } = require('child_process');
 const path = require('path');
+const http = require('http');
+const fs = require('fs');
 
 async function main() {
   console.log('====================================================');
@@ -94,17 +96,48 @@ async function main() {
     processes.push(child);
   }
 
+  // 2. Start Local Frontend Static Server on port 8080
+  const frontendPath = path.join(__dirname, '..', 'services', 'frontend-service', 'index.html');
+  const frontendServer = http.createServer((req, res) => {
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ status: 'ok', service: 'frontend-service-local' }));
+    }
+    fs.readFile(frontendPath, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        return res.end('Error loading frontend');
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(data);
+    });
+  });
+
+  frontendServer.listen(8080, () => {
+    console.log('🌐 [frontend-service] Local Map UI listening on: http://localhost:8080');
+  });
+
   console.log('\n====================================================');
-  console.log('🎉 All 4 Microservices have been launched!');
+  console.log('🎉 All 4 Microservices + Frontend have been launched!');
+  console.log('   Map Frontend UI:      http://localhost:8080');
   console.log('   Citizen Service:      http://localhost:3001');
   console.log('   Issue Service:        http://localhost:3002');
   console.log('   Assignment Service:   http://localhost:3003');
   console.log('   Notification Service: http://localhost:3004');
   console.log('====================================================\n');
 
+  // 3. Automatically Seed Landmark Data
+  try {
+    const { seedData } = require('./seed');
+    await seedData();
+  } catch (seedErr) {
+    console.warn('⚠️ Seed data warning:', seedErr.message);
+  }
+
   // Handle termination
   const cleanup = async () => {
     console.log('\n🛑 Shutting down all services and database...');
+    frontendServer.close();
     for (const proc of processes) {
       proc.kill('SIGINT');
     }
