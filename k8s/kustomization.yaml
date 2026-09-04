@@ -1,0 +1,23 @@
+# ============================================================
+# Kustomize — Apply all manifests in order
+# Usage: kubectl apply -k k8s/
+# ============================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: civicconnect
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - mongodb/statefulset.yaml
+  - citizen-service/deployment.yaml
+  - citizen-service/service.yaml
+  - issue-service/deployment.yaml
+  - issue-service/service.yaml
+  - assignment-service/deployment.yaml
+  - assignment-service/service.yaml
+  - notification-service/deployment.yaml
+  - notification-service/service.yaml
+  - ingress.yaml

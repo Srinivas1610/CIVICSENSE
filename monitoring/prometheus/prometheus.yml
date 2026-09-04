@@ -1,0 +1,70 @@
+# ============================================================
+# Prometheus Scrape Configuration — CivicConnect
+# ============================================================
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    project: 'civicconnect'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ─── CivicConnect Microservices ───────────────────
+  - job_name: 'citizen-service'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['citizen-service:3001']
+        labels:
+          service: 'citizen-service'
+          team: 'backend'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  - job_name: 'issue-service'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['issue-service:3002']
+        labels:
+          service: 'issue-service'
+          team: 'backend'
+
+  - job_name: 'assignment-service'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['assignment-service:3003']
+        labels:
+          service: 'assignment-service'
+          team: 'backend'
+
+  - job_name: 'notification-service'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['notification-service:3004']
+        labels:
+          service: 'notification-service'
+          team: 'backend'
+
+  # ─── MongoDB Exporter (optional, for DB metrics) ──
+  # Uncomment when mongodb-exporter is deployed
+  # - job_name: 'mongodb'
+  #   static_configs:
+  #     - targets: ['mongodb-exporter:9216']

@@ -1,0 +1,19 @@
+# ============================================================
+# CivicConnect — assignment-service Service (ClusterIP)
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: assignment-service
+  namespace: civicconnect
+  labels:
+    app: assignment-service
+spec:
+  type: ClusterIP
+  selector:
+    app: assignment-service
+  ports:
+    - name: http
+      port: 3003
+      targetPort: 3003
+      protocol: TCP

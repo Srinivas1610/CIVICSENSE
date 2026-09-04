@@ -1,0 +1,79 @@
+# ============================================================
+# CivicConnect — NGINX Ingress Gateway
+# Prerequisites: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/cloud/deploy.yaml
+# Minikube: minikube addons enable ingress
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: civicconnect-ingress
+  namespace: civicconnect
+  labels:
+    app: civicconnect
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: civicconnect.local
+      http:
+        paths:
+          - path: /api/citizens(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: citizen-service
+                port:
+                  number: 3001
+          - path: /api/issues(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: issue-service
+                port:
+                  number: 3002
+          - path: /api/assignments(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: assignment-service
+                port:
+                  number: 3003
+          - path: /api/notifications(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: notification-service
+                port:
+                  number: 3004
+          - path: /health(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: citizen-service
+                port:
+                  number: 3001
+---
+# NodePort Service for Minikube external access (alternative to Ingress)
+apiVersion: v1
+kind: Service
+metadata:
+  name: civicconnect-nodeport
+  namespace: civicconnect
+  labels:
+    app: civicconnect
+spec:
+  type: NodePort
+  selector:
+    app: citizen-service
+  ports:
+    - name: citizen
+      port: 3001
+      targetPort: 3001
+      nodePort: 30001

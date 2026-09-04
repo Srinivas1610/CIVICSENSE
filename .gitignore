@@ -1,0 +1,50 @@
+# ============================================================
+# CivicConnect — .gitignore
+# ============================================================
+
+# Node.js
+node_modules/
+dist/
+build/
+.npm
+npm-debug.log*
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+terraform/terraform.tfvars
+terraform/civicconnect.pem
+kubeconfig
+
+# Docker
+.dockerignore
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: civicconnect
+  labels:
+    app: notification-service
+    version: v1.0.0
+    component: microservice
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "3004"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      containers:
+        - name: notification-service
+          image: ghcr.io/YOUR_GITHUB_USERNAME/civicconnect-notification-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3004
+              name: http
+          env:
+            - name: PORT
+              value: "3004"
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: civicconnect-config
+                  key: NODE_ENV
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-uris
+                  key: NOTIFICATION_MONGO_URI
+            - name: CITIZEN_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: civicconnect-config
+                  key: CITIZEN_SERVICE_URL
+            - name: SMTP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: civicconnect-config
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: civicconnect-config
+                  key: SMTP_PORT
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: civicconnect-secrets
+                  key: SMTP_USER
+                  optional: true
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: civicconnect-secrets
+                  key: SMTP_PASS
+                  optional: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+      terminationGracePeriodSeconds: 30

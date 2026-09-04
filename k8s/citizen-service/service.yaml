@@ -1,0 +1,19 @@
+# ============================================================
+# CivicConnect — citizen-service Service (ClusterIP)
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: citizen-service
+  namespace: civicconnect
+  labels:
+    app: citizen-service
+spec:
+  type: ClusterIP
+  selector:
+    app: citizen-service
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001
+      protocol: TCP

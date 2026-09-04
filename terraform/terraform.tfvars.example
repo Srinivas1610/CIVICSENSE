@@ -1,0 +1,8 @@
+# Copy this file to terraform.tfvars and fill in your values
+# cp terraform.tfvars.example terraform.tfvars
+
+project_name     = "civicconnect"
+aws_region       = "us-east-1"
+instance_type    = "t2.micro"
+# Replace with your actual IP for SSH security:
+allowed_ssh_cidr = "0.0.0.0/0"

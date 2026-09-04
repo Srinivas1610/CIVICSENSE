@@ -1,0 +1,19 @@
+# ============================================================
+# CivicConnect ConfigMap — Shared Service Configuration
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: civicconnect-config
+  namespace: civicconnect
+  labels:
+    app: civicconnect
+    component: config
+data:
+  NODE_ENV: "production"
+  CITIZEN_SERVICE_URL: "http://citizen-service:3001"
+  ISSUE_SERVICE_URL: "http://issue-service:3002"
+  ASSIGNMENT_SERVICE_URL: "http://assignment-service:3003"
+  NOTIFICATION_SERVICE_URL: "http://notification-service:3004"
+  SMTP_HOST: "smtp.mailtrap.io"
+  SMTP_PORT: "587"

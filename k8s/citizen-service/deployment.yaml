@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: citizen-service
+  namespace: civicconnect
+  labels:
+    app: citizen-service
+    version: v1.0.0
+    component: microservice
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: citizen-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: citizen-service
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "3001"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      containers:
+        - name: citizen-service
+          image: ghcr.io/YOUR_GITHUB_USERNAME/civicconnect-citizen-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3001
+              name: http
+          env:
+            - name: PORT
+              value: "3001"
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: civicconnect-config
+                  key: NODE_ENV
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-uris
+                  key: CITIZEN_MONGO_URI
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: civicconnect-secrets
+                  key: JWT_SECRET
+            - name: ISSUE_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: civicconnect-config
+                  key: ISSUE_SERVICE_URL
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+      terminationGracePeriodSeconds: 30

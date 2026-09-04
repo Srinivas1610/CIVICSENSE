@@ -1,0 +1,19 @@
+# ============================================================
+# CivicConnect — notification-service Service (ClusterIP)
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: civicconnect
+  labels:
+    app: notification-service
+spec:
+  type: ClusterIP
+  selector:
+    app: notification-service
+  ports:
+    - name: http
+      port: 3004
+      targetPort: 3004
+      protocol: TCP

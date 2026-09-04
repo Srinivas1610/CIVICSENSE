@@ -1,0 +1,236 @@
+version: '3.9'
+
+# ============================================================
+# CivicConnect - Docker Compose Orchestration
+# Cloud Computing & DevOps Laboratory (CCDL)
+# Ports: citizen:3001 | issue:3002 | assignment:3003 | notification:3004
+# Monitoring: grafana:3000 | prometheus:9090
+# ============================================================
+
+networks:
+  civicconnect-net:
+    driver: bridge
+
+volumes:
+  mongo-citizen-data:
+  mongo-issue-data:
+  mongo-assignment-data:
+  mongo-notification-data:
+
+services:
+
+  # ─────────────────────────────────────────────
+  # DATABASES
+  # ─────────────────────────────────────────────
+
+  mongo-citizen:
+    image: mongo:7.0-jammy
+    container_name: cc-mongo-citizen
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: citizen_db
+    volumes:
+      - mongo-citizen-data:/data/db
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-issue:
+    image: mongo:7.0-jammy
+    container_name: cc-mongo-issue
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: issue_db
+    volumes:
+      - mongo-issue-data:/data/db
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-assignment:
+    image: mongo:7.0-jammy
+    container_name: cc-mongo-assignment
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: assignment_db
+    volumes:
+      - mongo-assignment-data:/data/db
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-notification:
+    image: mongo:7.0-jammy
+    container_name: cc-mongo-notification
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: notification_db
+    volumes:
+      - mongo-notification-data:/data/db
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # MICROSERVICES
+  # ─────────────────────────────────────────────
+
+  citizen-service:
+    build:
+      context: ./services/citizen-service
+      dockerfile: Dockerfile
+    container_name: cc-citizen-service
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo-citizen:27017/citizen_db
+      JWT_SECRET: civicconnect-dev-jwt-secret-changeme-in-prod
+      ISSUE_SERVICE_URL: http://issue-service:3002
+    depends_on:
+      mongo-citizen:
+        condition: service_healthy
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  issue-service:
+    build:
+      context: ./services/issue-service
+      dockerfile: Dockerfile
+    container_name: cc-issue-service
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo-issue:27017/issue_db
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      ASSIGNMENT_SERVICE_URL: http://assignment-service:3003
+      NOTIFICATION_SERVICE_URL: http://notification-service:3004
+    depends_on:
+      mongo-issue:
+        condition: service_healthy
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  assignment-service:
+    build:
+      context: ./services/assignment-service
+      dockerfile: Dockerfile
+    container_name: cc-assignment-service
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo-assignment:27017/assignment_db
+      ISSUE_SERVICE_URL: http://issue-service:3002
+      NOTIFICATION_SERVICE_URL: http://notification-service:3004
+    depends_on:
+      mongo-assignment:
+        condition: service_healthy
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: cc-notification-service
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: 3004
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo-notification:27017/notification_db
+      CITIZEN_SERVICE_URL: http://citizen-service:3001
+      SMTP_HOST: ${SMTP_HOST:-smtp.mailtrap.io}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    depends_on:
+      mongo-notification:
+        condition: service_healthy
+    networks:
+      - civicconnect-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ─────────────────────────────────────────────
+  # OBSERVABILITY
+  # ─────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: cc-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - civicconnect-net
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    container_name: cc-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: civicconnect123
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - civicconnect-net
+    depends_on:
+      - prometheus
